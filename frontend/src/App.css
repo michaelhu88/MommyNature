@@ -1,0 +1,250 @@
+.App {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.App-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.App-header h1 {
+  color: #2d5a27;
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.App-header p {
+  color: #666;
+  font-size: 1.2em;
+}
+
+.search-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  justify-content: center;
+}
+
+.search-input {
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  width: 400px;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.search-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.search-button:hover:not(:disabled) {
+  background-color: #357abd;
+}
+
+.search-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.results {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.results-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.results-header h2 {
+  color: #2d5a27;
+  font-size: 1.8em;
+}
+
+.top-locations {
+  background-color: white;
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.top-locations h3 {
+  color: #2d5a27;
+  margin-bottom: 20px;
+  font-size: 1.4em;
+}
+
+.locations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.location-card {
+  background-color: #f8f9fa;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 15px;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.location-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.location-rank {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  background-color: #4a90e2;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.location-name {
+  font-weight: bold;
+  color: #2d5a27;
+  margin-bottom: 5px;
+  font-size: 1.1em;
+}
+
+.location-stats {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.reddit-posts {
+  background-color: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reddit-posts h3 {
+  color: #2d5a27;
+  margin-bottom: 20px;
+  font-size: 1.4em;
+}
+
+.reddit-post {
+  border-bottom: 1px solid #e1e5e9;
+  padding: 20px 0;
+}
+
+.reddit-post:last-child {
+  border-bottom: none;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.post-header h4 {
+  color: #2d5a27;
+  margin: 0;
+  font-size: 1.2em;
+  flex: 1;
+}
+
+.post-score {
+  background-color: #4a90e2;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  margin-left: 10px;
+}
+
+.post-locations {
+  color: #666;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+.top-comment {
+  background-color: #f8f9fa;
+  border-left: 4px solid #4a90e2;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+
+.top-comment p {
+  margin: 5px 0 0 0;
+  color: #555;
+  font-style: italic;
+}
+
+.reddit-link {
+  color: #4a90e2;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.reddit-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .search-form {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .search-input {
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  .locations-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .post-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
