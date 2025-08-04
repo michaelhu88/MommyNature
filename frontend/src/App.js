@@ -1,21 +1,40 @@
 import React, { useState } from 'react';
 import './App.css';
+import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 
 function App() {
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useState({
+    location_type: 'viewpoints',
+    city: '',
+    max_results: 5
+  });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Location type options
+  const locationTypes = [
+    { value: 'viewpoints', label: 'Scenic Viewpoints' },
+    { value: 'hiking', label: 'Hiking Trails' },
+    { value: 'dog_parks', label: 'Dog Parks' }
+  ];
+
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!searchParams.city.trim()) {
+      setError('Please select a city');
+      return;
+    }
 
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:8000/scrape/${encodeURIComponent(query)}?max_results=5`);
+      // Use the full city name as entered (including state/country if present)
+      const encodedCity = encodeURIComponent(searchParams.city.trim());
+      const encodedCategory = encodeURIComponent(searchParams.location_type);
+      
+      const response = await fetch(`http://localhost:8000/locations/${encodedCity}/${encodedCategory}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch results');
@@ -32,24 +51,71 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>🌲 MommyNature</h1>
-        <p>Discover scenic nature spots near you, curated from Reddit</p>
-      </header>
-
-      <main className="App-main">
-        <form onSubmit={handleSearch} className="search-form">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for nature spots (e.g., 'hiking trails bay area')"
-            className="search-input"
-          />
-          <button type="submit" disabled={loading} className="search-button">
-            {loading ? 'Searching...' : 'Find Spots'}
+      {/* Navigation Bar */}
+      <nav className="navbar">
+        <div className="nav-left">
+          <button className="hamburger-menu">
+            <span></span>
+            <span></span>
+            <span></span>
           </button>
-        </form>
+        </div>
+        <div className="nav-center">
+          <h1 className="nav-title">🌲 MommyNature</h1>
+        </div>
+        <div className="nav-right">
+          <button className="nav-button">EXPLORE</button>
+        </div>
+      </nav>
+
+      <div className="main-container">
+        {/* Header */}
+        <header className="app-header">
+          <p className="app-subtitle">Discover Scenic Nature Spots Curated from Reddit</p>
+        </header>
+
+        {/* Main Search Section */}
+        <section className="search-main">
+          <div className="search-wrapper">
+            <h2 className="search-title">What are you looking for?</h2>
+            
+            {/* Category Selection */}
+            <div className="category-grid">
+              {locationTypes.map(type => (
+                <button
+                  key={type.value}
+                  className={`category-pill ${
+                    searchParams.location_type === type.value ? 'active' : ''
+                  }`}
+                  onClick={() => setSearchParams({...searchParams, location_type: type.value})}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Form */}
+            <form onSubmit={handleSearch} className="search-form">
+              <div className="search-bar">
+                <GooglePlacesAutocomplete
+                  value={searchParams.city}
+                  onChange={(city) => setSearchParams({...searchParams, city})}
+                  placeholder="Enter a city (e.g., San Francisco, CA)"
+                  className="search-input"
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={loading || !searchParams.city} 
+                className="search-button"
+              >
+                {loading ? 'Searching...' : 'Find Places'}
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <main className="content-main">
 
         {error && (
           <div className="error">
@@ -61,60 +127,46 @@ function App() {
         {results && (
           <div className="results">
             <div className="results-header">
-              <h2>Found {results.total_posts} Reddit discussions about "{results.query}"</h2>
+              <h2>Found {results.count || 0} {locationTypes.find(t => t.value === results.category)?.label} in {results.city}</h2>
             </div>
 
-            {results.top_locations && results.top_locations.length > 0 && (
+            {results.locations && results.locations.length > 0 ? (
               <div className="top-locations">
                 <h3>🏆 Top Recommended Locations</h3>
                 <div className="locations-grid">
-                  {results.top_locations.slice(0, 8).map((location, index) => (
+                  {results.locations.map((location, index) => (
                     <div key={index} className="location-card">
                       <div className="location-rank">#{index + 1}</div>
                       <div className="location-name">{location.name}</div>
                       <div className="location-stats">
-                        Score: {location.score} | Mentions: {location.mentions}
+                        Score: {location.score?.toFixed(1) || 'N/A'} | Mentions: {location.mentions || 0}
+                        {location.google_rating && ` | ⭐ ${location.google_rating}/5`}
                       </div>
+                      {location.address && (
+                        <div className="location-address">
+                          📍 {location.address}
+                        </div>
+                      )}
+                      {location.validated && (
+                        <div className="location-validation">
+                          ✅ Verified with Google Places
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
-            )}
-
-            {results.reddit_posts && results.reddit_posts.length > 0 && (
-              <div className="reddit-posts">
-                <h3>📱 Reddit Discussions</h3>
-                {results.reddit_posts.map((post, index) => (
-                  <div key={index} className="reddit-post">
-                    <div className="post-header">
-                      <h4>{post.title}</h4>
-                      <span className="post-score">👍 {post.score}</span>
-                    </div>
-                    
-                    {post.locations && post.locations.length > 0 && (
-                      <div className="post-locations">
-                        <strong>Locations mentioned:</strong> {post.locations.slice(0, 5).join(', ')}
-                        {post.locations.length > 5 && ` and ${post.locations.length - 5} more`}
-                      </div>
-                    )}
-                    
-                    {post.top_comments && post.top_comments[0] && (
-                      <div className="top-comment">
-                        <strong>💬 Top comment:</strong>
-                        <p>{post.top_comments[0].body.slice(0, 200)}...</p>
-                      </div>
-                    )}
-                    
-                    <a href={post.reddit_url} target="_blank" rel="noopener noreferrer" className="reddit-link">
-                      View on Reddit →
-                    </a>
-                  </div>
-                ))}
+            ) : (
+              <div className="no-results">
+                <h3>No locations found</h3>
+                <p>{results.message || `No ${locationTypes.find(t => t.value === results.category)?.label} found in ${results.city}`}</p>
+                <p>Try a different city or category, or check if the city name is spelled correctly.</p>
               </div>
             )}
           </div>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

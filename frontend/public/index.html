@@ -6,6 +6,16 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Discover scenic nature spots near you" />
     <title>MommyNature - Find Your Perfect Nature Spot</title>
+    <!-- Google Places API -->
+    <script async defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-uQ2Ufi00Qiq7CTOFh6CjlGb1qZivHnY&libraries=places&callback=initGoogleMaps">
+    </script>
+    <script>
+      window.initGoogleMaps = function() {
+        console.log('Google Maps API loaded successfully');
+        window.googleMapsLoaded = true;
+      };
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
