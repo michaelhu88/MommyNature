@@ -1,0 +1,190 @@
+{
+  "San Jose, CA": {
+    "viewpoints": {
+      "locations": [
+        {
+          "name": "Lick Observatory",
+          "score": 9.5,
+          "reddit_score": 5.9,
+          "google_score": 9.2,
+          "context_boost": 1.0,
+          "type_boost": 1.2,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": 4.7,
+          "google_reviews": 623,
+          "google_types": [
+            "gift_shop",
+            "tourist_attraction",
+            "point_of_interest",
+            "store",
+            "establishment"
+          ],
+          "address": "7281 Mt Hamilton Rd, Mt Hamilton, CA 95140, USA",
+          "place_id": "ChIJF0sJhG4qjoARa-_KfC92Vu8",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        },
+        {
+          "name": "Hamilton Walker's",
+          "score": 9.2,
+          "reddit_score": 5.9,
+          "google_score": 8.8,
+          "context_boost": 1.0,
+          "type_boost": 1.2,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": 4.5,
+          "google_reviews": 950,
+          "google_types": [
+            "steak_house",
+            "restaurant",
+            "point_of_interest",
+            "food",
+            "establishment"
+          ],
+          "address": "201 N Neil St, Champaign, IL 61820, USA",
+          "place_id": "ChIJj7naiUzXDIgRysCvEK40uVY",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        },
+        {
+          "name": "Mount Umunhum",
+          "score": 9.0,
+          "reddit_score": 5.9,
+          "google_score": 8.6,
+          "context_boost": 1.0,
+          "type_boost": 1.2,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": 4.8,
+          "google_reviews": 451,
+          "google_types": [
+            "natural_feature",
+            "establishment"
+          ],
+          "address": "Mt Umunhum, California 95120, USA",
+          "place_id": "ChIJKWgZBAE6joARtFF8ta598Tk",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        },
+        {
+          "name": "Silicon Valley Capital Club",
+          "score": 8.7,
+          "reddit_score": 5.9,
+          "google_score": 8.1,
+          "context_boost": 1.0,
+          "type_boost": 1.2,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": 4.6,
+          "google_reviews": 357,
+          "google_types": [
+            "point_of_interest",
+            "establishment"
+          ],
+          "address": "50 W San Fernando St, San Jose, CA 95113, USA",
+          "place_id": "ChIJa6SeQ7vMj4AR3YpyhmuXvng",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        },
+        {
+          "name": "Grandview Drive",
+          "score": 2.4,
+          "reddit_score": 5.9,
+          "google_score": 0.0,
+          "context_boost": 1.0,
+          "type_boost": 1.0,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": null,
+          "google_reviews": 0,
+          "google_types": [
+            "route"
+          ],
+          "address": "Grandview Dr, Champaign, IL 61820, USA",
+          "place_id": "ChIJH_7vJNLQDIgRwxdresBn0IA",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        },
+        {
+          "name": "Communications Hill",
+          "score": 1.7,
+          "reddit_score": 5.9,
+          "google_score": 0.0,
+          "context_boost": 1.0,
+          "type_boost": 0.7,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": null,
+          "google_reviews": 0,
+          "google_types": [
+            "neighborhood",
+            "political"
+          ],
+          "address": "Communications Hill, San Jose, CA, USA",
+          "place_id": "ChIJkzx9qKszjoAR37XDeNCPCGY",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        },
+        {
+          "name": "Communications Hill",
+          "score": 1.7,
+          "reddit_score": 5.9,
+          "google_score": 0.0,
+          "context_boost": 1.0,
+          "type_boost": 0.7,
+          "mentions": 2,
+          "sources": [
+            "Post: Best viewpoints overlooking the city in San Jose?...",
+            "Comment (+13): Mt Hamilton (Grandview or Lick Observatory)\n\nMt Um..."
+          ],
+          "google_rating": null,
+          "google_reviews": 0,
+          "google_types": [
+            "neighborhood",
+            "political"
+          ],
+          "address": "Communications Hill, San Jose, CA, USA",
+          "place_id": "ChIJkzx9qKszjoAR37XDeNCPCGY",
+          "validated": true,
+          "city": "San Jose, CA",
+          "category": "viewpoints",
+          "source_url": "https://www.reddit.com/r/SanJose/comments/c5ec1h/best_viewpoints_overlooking_the_city_in_san_jose/"
+        }
+      ],
+      "updated_at": 1754272490.669158,
+      "count": 7
+    }
+  }
+}

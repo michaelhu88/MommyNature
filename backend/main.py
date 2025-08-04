@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict
+from pydantic import BaseModel
+from typing import List, Dict, Optional
 import asyncio
+import os
 from reddit_scraper import RedditScraper
 import uvicorn
 
@@ -20,8 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Reddit scraper
-scraper = RedditScraper()
+
+# Initialize Reddit scraper (with debug mode for development)
+DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+scraper = RedditScraper(debug_mode=DEBUG_MODE)
 
 @app.get("/")
 async def root():
@@ -42,54 +46,100 @@ async def health_check():
     return {
         "status": "healthy",
         "reddit_api": reddit_status,
-        "endpoints": ["/scrape/{query}", "/locations/popular", "/health"]
+        "endpoints": ["/scrape/url", "/locations/{city}/{category}", "/locations/{city}", "/health"]
     }
 
-@app.get("/scrape/{query}")
-async def scrape_locations(query: str, max_results: int = 5):
+class ScrapeUrlRequest(BaseModel):
+    url: str
+    city: str
+    category: str
+    target_count: int = 10
+
+@app.post("/scrape/url")
+async def scrape_reddit_url(request: ScrapeUrlRequest):
     """
-    Scrape Reddit for nature locations
+    Extract top locations from a specific Reddit URL
     
-    - **query**: Search term (e.g., "hiking trails bay area")
-    - **max_results**: Maximum number of Reddit posts to process (default: 5)
+    - **url**: Reddit post URL to scrape
+    - **city**: City name (e.g., "San Jose, CA")
+    - **category**: Location category (e.g., "viewpoints", "hiking_trails", "dog_parks")
+    - **target_count**: Number of top locations to extract (default: 10)
     """
     try:
-        # Run scraping in thread to avoid blocking
-        results = await asyncio.get_event_loop().run_in_executor(
-            None, 
-            scraper.scrape_for_locations, 
-            query, 
-            max_results
+        # Extract locations from the URL
+        top_locations = await asyncio.get_event_loop().run_in_executor(
+            None,
+            scraper.extract_top_locations_from_url,
+            request.url,
+            request.city,
+            request.category,
+            request.target_count
         )
         
-        # Get top locations
-        top_locations = scraper.get_top_locations_by_score(results, top_n=10)
-        
         return {
-            "query": query,
-            "reddit_posts": results,
-            "top_locations": top_locations,
-            "total_posts": len(results)
+            "success": True,
+            "city": request.city,
+            "category": request.category,
+            "url": request.url,
+            "locations": top_locations,
+            "count": len(top_locations)
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"URL scraping failed: {str(e)}")
 
-@app.get("/locations/popular")
-async def get_popular_locations():
-    """Get popular nature locations from recent scrapes"""
-    # This would eventually pull from database
-    # For now, return some sample Bay Area locations
-    return {
-        "locations": [
-            {"name": "Sierra Vista Open Space", "type": "viewpoint", "region": "South Bay"},
-            {"name": "Mt. Hamilton", "type": "mountain", "region": "South Bay"},
-            {"name": "Communications Hill", "type": "viewpoint", "region": "South Bay"},
-            {"name": "Muir Woods", "type": "forest", "region": "North Bay"},
-            {"name": "Point Reyes", "type": "coastal", "region": "North Bay"},
-            {"name": "Big Sur", "type": "coastal", "region": "Central Coast"}
-        ]
-    }
+@app.get("/locations/{city}/{category}")
+async def get_locations_for_city_category(city: str, category: str):
+    """Get saved locations for a specific city and category"""
+    try:
+        locations = scraper.get_locations_for_city_category(city, category)
+        
+        if not locations:
+            return {
+                "city": city,
+                "category": category,
+                "locations": [],
+                "message": f"No saved locations found for {city} → {category}"
+            }
+        
+        return {
+            "city": city,
+            "category": category,
+            "locations": locations,
+            "count": len(locations)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving locations: {str(e)}")
+
+@app.get("/locations/{city}")
+async def get_all_locations_for_city(city: str):
+    """Get all categories and locations for a specific city"""
+    try:
+        city_data = scraper.get_all_locations_for_city(city)
+        
+        if not city_data:
+            return {
+                "city": city,
+                "categories": {},
+                "message": f"No saved data found for {city}"
+            }
+        
+        # Count total locations across all categories
+        total_locations = sum(
+            len(cat_data.get('locations', [])) for cat_data in city_data.values()
+        )
+        
+        return {
+            "city": city,
+            "categories": city_data,
+            "total_locations": total_locations,
+            "categories_count": len(city_data)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving city data: {str(e)}")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
