@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import './App.css';
-import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 
 function App() {
   const [searchParams, setSearchParams] = useState({
     location_type: 'viewpoints',
     city: '',
+    state: '',
     max_results: 5
   });
   const [results, setResults] = useState(null);
@@ -19,10 +19,50 @@ function App() {
     { value: 'dog_parks', label: 'Dog Parks' }
   ];
 
+  // US States options
+  const usStates = [
+    { value: '', label: 'Select state' },
+    { value: 'CA', label: 'California (CA)' },
+    { value: 'NY', label: 'New York (NY)' },
+    { value: 'TX', label: 'Texas (TX)' },
+    { value: 'FL', label: 'Florida (FL)' },
+    { value: 'WA', label: 'Washington (WA)' },
+    { value: 'OR', label: 'Oregon (OR)' },
+    { value: 'CO', label: 'Colorado (CO)' },
+    { value: 'AZ', label: 'Arizona (AZ)' },
+    { value: 'NV', label: 'Nevada (NV)' },
+    { value: 'UT', label: 'Utah (UT)' },
+    { value: 'NM', label: 'New Mexico (NM)' },
+    { value: 'ID', label: 'Idaho (ID)' },
+    { value: 'MT', label: 'Montana (MT)' },
+    { value: 'WY', label: 'Wyoming (WY)' },
+    { value: 'NC', label: 'North Carolina (NC)' },
+    { value: 'SC', label: 'South Carolina (SC)' },
+    { value: 'GA', label: 'Georgia (GA)' },
+    { value: 'AL', label: 'Alabama (AL)' },
+    { value: 'TN', label: 'Tennessee (TN)' },
+    { value: 'KY', label: 'Kentucky (KY)' },
+    { value: 'VA', label: 'Virginia (VA)' },
+    { value: 'WV', label: 'West Virginia (WV)' },
+    { value: 'MD', label: 'Maryland (MD)' },
+    { value: 'PA', label: 'Pennsylvania (PA)' },
+    { value: 'NJ', label: 'New Jersey (NJ)' },
+    { value: 'CT', label: 'Connecticut (CT)' },
+    { value: 'MA', label: 'Massachusetts (MA)' },
+    { value: 'VT', label: 'Vermont (VT)' },
+    { value: 'NH', label: 'New Hampshire (NH)' },
+    { value: 'ME', label: 'Maine (ME)' },
+    { value: 'RI', label: 'Rhode Island (RI)' }
+  ];
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchParams.city.trim()) {
-      setError('Please select a city');
+      setError('Please enter a city');
+      return;
+    }
+    if (!searchParams.state) {
+      setError('Please select a state');
       return;
     }
 
@@ -30,8 +70,20 @@ function App() {
     setError(null);
     
     try {
-      // Use the full city name as entered (including state/country if present)
-      const encodedCity = encodeURIComponent(searchParams.city.trim());
+      // Combine city and state into "City, State" format
+      const cityStateCombo = `${searchParams.city.trim()}, ${searchParams.state}`;
+      console.log('🔍 handleSearch - combined city,state:', cityStateCombo);
+      
+      // Clean any potential issues (fallback in case user somehow added extra text)
+      let cleanedCity = cityStateCombo;
+      if (cleanedCity.toUpperCase().endsWith('USA')) {
+        cleanedCity = cleanedCity.slice(0, -3).trim();
+      }
+      if (cleanedCity.endsWith(',')) {
+        cleanedCity = cleanedCity.slice(0, -1).trim();
+      }
+      console.log('🧹 handleSearch - final cleaned city:', cleanedCity);
+      const encodedCity = encodeURIComponent(cleanedCity.trim());
       const encodedCategory = encodeURIComponent(searchParams.location_type);
       
       const response = await fetch(`http://localhost:8000/locations/${encodedCity}/${encodedCategory}`);
@@ -97,16 +149,34 @@ function App() {
             {/* Search Form */}
             <form onSubmit={handleSearch} className="search-form">
               <div className="search-bar">
-                <GooglePlacesAutocomplete
+                <input
+                  type="text"
                   value={searchParams.city}
-                  onChange={(city) => setSearchParams({...searchParams, city})}
-                  placeholder="Enter a city (e.g., San Francisco, CA)"
-                  className="search-input"
+                  onChange={(e) => {
+                    console.log('🔄 App.js received city update:', e.target.value);
+                    setSearchParams({...searchParams, city: e.target.value});
+                  }}
+                  placeholder="Enter city name (e.g., San Francisco)"
+                  className="search-input city-input"
                 />
+                <select
+                  value={searchParams.state}
+                  onChange={(e) => {
+                    console.log('🔄 App.js received state update:', e.target.value);
+                    setSearchParams({...searchParams, state: e.target.value});
+                  }}
+                  className="search-input state-select"
+                >
+                  {usStates.map(state => (
+                    <option key={state.value} value={state.value}>
+                      {state.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <button 
                 type="submit" 
-                disabled={loading || !searchParams.city} 
+                disabled={loading || !searchParams.city.trim() || !searchParams.state} 
                 className="search-button"
               >
                 {loading ? 'Searching...' : 'Find Places'}

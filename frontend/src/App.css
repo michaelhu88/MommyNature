@@ -293,6 +293,9 @@ body {
   border: 2px solid var(--border-light);
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
 }
 
 .search-bar:focus-within {
@@ -302,13 +305,23 @@ body {
 
 .search-input {
   font-family: var(--font-family);
-  width: 100%;
   border: none;
   outline: none;
   padding: var(--space-md) 0;
   font-size: 1rem;
   background: transparent;
   color: var(--text-dark);
+}
+
+.city-input {
+  flex: 2;
+  min-width: 0;
+}
+
+.state-select {
+  flex: 1;
+  min-width: 120px;
+  cursor: pointer;
 }
 
 .search-input::placeholder {
