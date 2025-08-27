@@ -32,7 +32,7 @@ class GooglePlacesService:
             headers = {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': self.api_key,
-                'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.types,places.formattedAddress,places.shortFormattedAddress,places.id'
+                'X-Goog-FieldMask': 'places.displayName,places.rating,places.userRatingCount,places.types,places.formattedAddress,places.shortFormattedAddress,places.id,places.photos'
             }
             
             data = {
@@ -52,6 +52,23 @@ class GooglePlacesService:
                 if 'places' in result and result['places']:
                     place = result['places'][0]
                     
+                    # Debug: Print the full place response to understand structure
+                    print(f"🔍 DEBUG: Place data for '{location_name}':")
+                    print(f"  Photos field present: {'photos' in place}")
+                    if 'photos' in place:
+                        print(f"  Number of photos: {len(place['photos'])}")
+                        print(f"  Sample photo data: {place['photos'][:1] if place['photos'] else 'None'}")
+                    
+                    # Extract photo names
+                    photo_names = []
+                    if 'photos' in place and place['photos']:
+                        for photo in place['photos'][:3]:  # Get up to 3 photos
+                            if 'name' in photo:
+                                photo_names.append(photo['name'])
+                                print(f"  📸 Found photo: {photo['name']}")
+                    
+                    print(f"  Total photos extracted: {len(photo_names)}")
+                    
                     return {
                         'name': place.get('displayName', {}).get('text', location_name),
                         'rating': place.get('rating'),
@@ -59,7 +76,8 @@ class GooglePlacesService:
                         'types': place.get('types', []),
                         'address': place.get('formattedAddress', ''),
                         'vicinity': place.get('shortFormattedAddress', ''),
-                        'place_id': place.get('id', '')
+                        'place_id': place.get('id', ''),
+                        'photo_names': photo_names
                     }
             elif response.status_code == 429:
                 print(f"Rate limit hit for '{location_name}' - waiting 2 seconds...")
@@ -74,6 +92,32 @@ class GooglePlacesService:
         except Exception as e:
             print(f"Error searching for place '{location_name}': {e}")
             return None
+    
+    def get_photo_url(self, photo_name: str, max_width: int = 800) -> str:
+        """Convert photo name to actual photo URL"""
+        if not self.api_key or not photo_name:
+            return ""
+        
+        # For the new Places API, photo names are in format "places/{place_id}/photos/{photo_id}"
+        # Construct the correct URL for the Places Photo API
+        return f"https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx={max_width}&key={self.api_key}"
+    
+    def get_photo_urls(self, photo_names: List[str], max_width: int = 800) -> List[str]:
+        """Convert list of photo names to photo URLs"""
+        print(f"🔗 BACKEND DEBUG: Converting {len(photo_names)} photo names to URLs")
+        print(f"  Input photo_names: {photo_names}")
+        
+        urls = []
+        for i, name in enumerate(photo_names):
+            if name:
+                url = self.get_photo_url(name, max_width)
+                urls.append(url)
+                print(f"  Photo {i+1}: {url}")
+            else:
+                print(f"  Photo {i+1}: SKIPPED (empty name)")
+        
+        print(f"  Total URLs generated: {len(urls)}")
+        return urls
     
     def calculate_google_score(self, rating: float, review_count: int) -> float:
         """
@@ -151,7 +195,9 @@ class GooglePlacesService:
                     'google_reviews': google_data.get('review_count', 0),
                     'google_types': google_data.get('types', []),
                     'address': google_data.get('address', ''),
-                    'place_id': google_data.get('place_id', '')
+                    'place_id': google_data.get('place_id', ''),
+                    'photo_names': google_data.get('photo_names', []),
+                    'photo_urls': self.get_photo_urls(google_data.get('photo_names', []))
                 })
             else:
                 # No Google data found, keep original Reddit score but mark it
@@ -163,7 +209,9 @@ class GooglePlacesService:
                     'google_reviews': 0,
                     'google_types': [],
                     'address': '',
-                    'place_id': ''
+                    'place_id': '',
+                    'photo_names': [],
+                    'photo_urls': []
                 })
             
             enhanced_locations.append(enhanced_location)

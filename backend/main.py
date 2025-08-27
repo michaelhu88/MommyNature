@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import Optional
 import asyncio
 import os
-from reddit_scraper import RedditScraper
+from reddit_transcript import RedditTranscriptService
+from gpt_extraction import GPTLocationExtractor
+from gpt_cache_service import GPTCacheService
 import uvicorn
 
 app = FastAPI(
@@ -22,10 +24,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Initialize Reddit scraper (with debug mode for development)
-DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
-scraper = RedditScraper(debug_mode=DEBUG_MODE)
+# Initialize services
+transcript_service = RedditTranscriptService()
+gpt_extractor = GPTLocationExtractor()
+cache_service = GPTCacheService()
 
 @app.get("/")
 async def root():
@@ -37,7 +39,7 @@ async def health_check():
     """Detailed health check"""
     try:
         # Test Reddit connection
-        subreddit = scraper.reddit.subreddit("hiking")
+        subreddit = transcript_service.reddit.subreddit("hiking")
         test_post = next(subreddit.hot(limit=1))
         reddit_status = "connected"
     except Exception as e:
@@ -46,100 +48,319 @@ async def health_check():
     return {
         "status": "healthy",
         "reddit_api": reddit_status,
-        "endpoints": ["/scrape/url", "/locations/{city}/{category}", "/locations/{city}", "/health"]
+        "endpoints": ["/api/transcript", "/api/locations", "/api/places/cities", "/api/places/lookup", "/api/places/{place_id}/locations", "/health"]
     }
 
-class ScrapeUrlRequest(BaseModel):
-    url: str
-    city: str
-    category: str
-    target_count: int = 10
+class TranscriptRequest(BaseModel):
+    reddit_url: str
 
-@app.post("/scrape/url")
-async def scrape_reddit_url(request: ScrapeUrlRequest):
+class LocationRequest(BaseModel):
+    reddit_url: str
+    city: str
+    category: str  # viewpoints, dog_parks, hiking_spots
+
+@app.post("/api/transcript")
+async def get_reddit_transcript(request: TranscriptRequest):
     """
-    Extract top locations from a specific Reddit URL
+    Extract complete transcript from a Reddit URL
     
-    - **url**: Reddit post URL to scrape
-    - **city**: City name (e.g., "San Jose, CA")
-    - **category**: Location category (e.g., "viewpoints", "hiking_trails", "dog_parks")
-    - **target_count**: Number of top locations to extract (default: 10)
+    - **reddit_url**: Reddit post URL to extract transcript from
     """
     try:
-        # Extract locations from the URL
-        top_locations = await asyncio.get_event_loop().run_in_executor(
+        # Extract transcript from the URL
+        transcript = await asyncio.get_event_loop().run_in_executor(
             None,
-            scraper.extract_top_locations_from_url,
-            request.url,
-            request.city,
-            request.category,
-            request.target_count
+            transcript_service.get_transcript,
+            request.reddit_url
         )
         
+        if not transcript:
+            raise HTTPException(status_code=400, detail="Could not extract submission ID from URL")
+        
+        if not transcript.get('success'):
+            raise HTTPException(status_code=500, detail=f"Transcript extraction failed: {transcript.get('error')}")
+        
+        return transcript
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcript extraction failed: {str(e)}")
+
+@app.post("/api/locations")
+async def extract_locations(request: LocationRequest):
+    """
+    Extract and verify locations from Reddit URL with city and category context
+    
+    - **reddit_url**: Reddit post URL to extract locations from
+    - **city**: City context (required) - e.g. "San Jose", "San Francisco"
+    - **category**: Location category (required) - "viewpoints", "dog_parks", or "hiking_spots"
+    """
+    try:
+        # Validate category
+        valid_categories = ["viewpoints", "dog_parks", "hiking_spots"]
+        if request.category not in valid_categories:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid category. Must be one of: {', '.join(valid_categories)}"
+            )
+        
+        # Step 1: Get transcript using existing service (reuse logic)
+        transcript = await asyncio.get_event_loop().run_in_executor(
+            None,
+            transcript_service.get_transcript,
+            request.reddit_url
+        )
+        
+        if not transcript:
+            raise HTTPException(status_code=400, detail="Could not extract submission ID from URL")
+        
+        if not transcript.get('success'):
+            raise HTTPException(status_code=500, detail=f"Transcript extraction failed: {transcript.get('error')}")
+        
+        # Step 2: Extract locations with GPT + Google verification
+        if not gpt_extractor.client:
+            raise HTTPException(status_code=500, detail="OpenAI API not available - check OPENAI_API_KEY")
+        
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            gpt_extractor.extract_locations,
+            transcript,
+            request.city,
+            request.category
+        )
+        
+        # Step 3: Cache verified locations if any exist
+        if result['verified_locations']:
+            # TODO: Update to pass city_place_id and city_metadata when Google Places integration is complete
+            cache_success = await asyncio.get_event_loop().run_in_executor(
+                None,
+                cache_service.add_locations,
+                request.city,
+                request.category,
+                result['verified_locations'],
+                request.reddit_url
+            )
+            result['cached'] = cache_success
+        else:
+            result['cached'] = False
+        
+        # Add request info to response
+        result['request_info'] = {
+            'reddit_url': request.reddit_url,
+            'city': request.city,
+            'category': request.category,
+            'post_title': transcript['post']['title'],
+            'total_comments': transcript['total_comments']
+        }
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Location extraction failed: {str(e)}")
+
+@app.get("/api/places/cities")
+async def get_all_cities():
+    """
+    Get all cached cities with their metadata including place_ids
+    
+    Returns list of cities with place_id, name, state, etc.
+    """
+    try:
+        cities = cache_service.get_all_cities_with_metadata()
         return {
-            "success": True,
-            "city": request.city,
-            "category": request.category,
-            "url": request.url,
-            "locations": top_locations,
-            "count": len(top_locations)
+            "cities": cities,
+            "count": len(cities)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get cities: {str(e)}")
+
+@app.get("/api/places/lookup/{place_id}")
+async def get_city_by_place_id(place_id: str):
+    """
+    Get city metadata by Google place_id
+    
+    - **place_id**: Google Places place_id for the city
+    """
+    try:
+        city_metadata = cache_service.get_city_by_place_id(place_id)
+        
+        if not city_metadata:
+            raise HTTPException(status_code=404, detail=f"City with place_id '{place_id}' not found in cache")
+        
+        return {
+            "city_metadata": city_metadata,
+            "place_id": place_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to lookup city by place_id: {str(e)}")
+
+@app.get("/api/places/{place_id}/locations/{category}")
+async def get_locations_by_place_id(place_id: str, category: str):
+    """
+    Get cached locations by Google place_id and category
+    
+    - **place_id**: Google Places place_id for the city
+    - **category**: Location category (e.g., "viewpoints", "dog_parks")
+    """
+    try:
+        # Get locations using place_id
+        locations = cache_service.get_locations_by_place_id(place_id, category)
+        
+        # Get city metadata for response
+        city_metadata = cache_service.get_city_by_place_id(place_id)
+        
+        if not locations:
+            return {
+                "city_metadata": city_metadata,
+                "place_id": place_id,
+                "category": category,
+                "count": 0,
+                "locations": [],
+                "message": f"No {category} found for this city. Try a different category."
+            }
+        
+        # Transform cache data to match frontend expectations
+        frontend_locations = []
+        for location in locations:
+            frontend_location = {
+                "name": location.get("name"),
+                "address": location.get("address"),
+                "google_rating": location.get("google_rating"),
+                "google_reviews": location.get("google_reviews", 0),
+                "place_id": location.get("place_id"),
+                "validated": location.get("verified", False),
+                "score": location.get("google_rating") or 7.0,
+                "mentions": 1
+            }
+            frontend_locations.append(frontend_location)
+        
+        return {
+            "city_metadata": city_metadata,
+            "place_id": place_id,
+            "category": category,
+            "count": len(frontend_locations),
+            "locations": frontend_locations,
+            "source": "cache"
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"URL scraping failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get locations by place_id: {str(e)}")
 
 @app.get("/locations/{city}/{category}")
-async def get_locations_for_city_category(city: str, category: str):
-    """Get saved locations for a specific city and category"""
+async def get_cached_locations(city: str, category: str):
+    """
+    Get cached locations by city and category
+    
+    - **city**: City name (e.g., "San Jose", "San Francisco")  
+    - **category**: Location category (e.g., "viewpoints", "dog_parks")
+    """
     try:
-        locations = scraper.get_locations_for_city_category(city, category)
+        # Normalize city name (handle URL encoding)
+        city = city.replace("%20", " ").replace("+", " ").strip()
+        
+        # Get cached locations
+        locations = cache_service.get_locations(city=city, category=category)
         
         if not locations:
             return {
                 "city": city,
                 "category": category,
+                "count": 0,
                 "locations": [],
-                "message": f"No saved locations found for {city} → {category}"
+                "message": f"No {category} found in {city}. Try a different city or category."
             }
+        
+        # Transform cache data to match frontend expectations
+        frontend_locations = []
+        for location in locations:
+            frontend_location = {
+                "name": location.get("name"),
+                "address": location.get("address"),
+                "google_rating": location.get("google_rating"),
+                "google_reviews": location.get("google_reviews", 0),
+                "place_id": location.get("place_id"),
+                "validated": location.get("verified", False),
+                "score": location.get("google_rating") or 7.0,  # Use Google rating or default
+                "mentions": 1  # Default since cache doesn't track mentions
+            }
+            frontend_locations.append(frontend_location)
         
         return {
             "city": city,
             "category": category,
-            "locations": locations,
-            "count": len(locations)
+            "count": len(frontend_locations),
+            "locations": frontend_locations,
+            "source": "cache"
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving locations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get cached locations: {str(e)}")
 
-@app.get("/locations/{city}")
-async def get_all_locations_for_city(city: str):
-    """Get all categories and locations for a specific city"""
+@app.get("/location/{location_name}/details")
+async def get_location_details(location_name: str, city: Optional[str] = None, category: Optional[str] = None):
+    """
+    Get detailed information about a specific location
+    
+    - **location_name**: Name of the location to get details for
+    - **city**: Optional city context to narrow search  
+    - **category**: Optional category context to narrow search
+    """
     try:
-        city_data = scraper.get_all_locations_for_city(city)
+        # Normalize location name (handle URL encoding)
+        location_name = location_name.replace("%20", " ").replace("+", " ").strip()
         
-        if not city_data:
-            return {
-                "city": city,
-                "categories": {},
-                "message": f"No saved data found for {city}"
-            }
+        # Search for the location in cache
+        all_locations = cache_service.get_locations(city=city, category=category)
         
-        # Count total locations across all categories
-        total_locations = sum(
-            len(cat_data.get('locations', [])) for cat_data in city_data.values()
-        )
+        if not all_locations:
+            raise HTTPException(status_code=404, detail=f"No locations found in cache")
+        
+        # Find location by name (case-insensitive)
+        found_location = None
+        for location in all_locations:
+            if location.get("name", "").lower() == location_name.lower():
+                found_location = location
+                break
+        
+        if not found_location:
+            # Try partial match if exact match not found
+            for location in all_locations:
+                if location_name.lower() in location.get("name", "").lower():
+                    found_location = location
+                    break
+        
+        if not found_location:
+            raise HTTPException(status_code=404, detail=f"Location '{location_name}' not found in cache")
+        
+        # Transform cache data to match frontend expectations
+        location_details = {
+            "name": found_location.get("name"),
+            "address": found_location.get("address"),
+            "google_rating": found_location.get("google_rating"),
+            "google_reviews": found_location.get("google_reviews", 0),
+            "place_id": found_location.get("place_id"),
+            "validated": found_location.get("verified", False),
+            "score": found_location.get("google_rating") or 7.0,
+            "mentions": 1,  # Default since cache doesn't track mentions
+            "tags": [],  # Could be derived from google_types if needed
+            "awesome_points": [f"Highly rated location with {found_location.get('google_reviews', 0)} reviews"],
+            "photo_urls": []  # Cache doesn't store photos currently
+        }
         
         return {
-            "city": city,
-            "categories": city_data,
-            "total_locations": total_locations,
-            "categories_count": len(city_data)
+            "location": location_details,
+            "source": "cache"
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving city data: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Failed to get location details: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

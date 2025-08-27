@@ -9,6 +9,9 @@
 claude.md
 CLAUDE.md
 
+# Cache tasks (keep private - may contain URLs/data)
+cache_tasks.json
+
 # Python
 __pycache__/
 *.py[cod]

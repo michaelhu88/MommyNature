@@ -71,7 +71,7 @@ Write a summary that sounds like advice from a trusted friend who's been there w
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful, caring mom who gives great outdoor recommendations."},
                     {"role": "user", "content": prompt}
