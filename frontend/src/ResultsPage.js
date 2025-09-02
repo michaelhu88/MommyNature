@@ -27,8 +27,9 @@ function ResultsPage() {
       state: {
         locationData: location,
         searchContext: {
-          city: results.city,
-          category: results.category
+          city: results.city_metadata?.display_name || results.city_metadata?.name,
+          category: results.category,
+          place_id: results.place_id
         }
       }
     });
@@ -41,7 +42,7 @@ function ResultsPage() {
           ← New Search
         </button>
         <div className="results-header">
-          <h2>Found {results.count || 0} {locationTypes.find(t => t.value === results.category)?.label} in {results.city}</h2>
+          <h2>Found {results.count || 0} {locationTypes.find(t => t.value === results.category)?.label} in {results.city_metadata?.display_name || results.city_metadata?.name}</h2>
         </div>
       </div>
 
@@ -80,7 +81,7 @@ function ResultsPage() {
             ) : (
               <div className="no-results">
                 <h3>No locations found</h3>
-                <p>{results.message || `No ${locationTypes.find(t => t.value === results.category)?.label} found in ${results.city}`}</p>
+                <p>{results.message || `No ${locationTypes.find(t => t.value === results.category)?.label} found in ${results.city_metadata?.display_name || results.city_metadata?.name}`}</p>
                 <p>Try a different city or category, or check if the city name is spelled correctly.</p>
                 <button onClick={handleNewSearch} className="search-button">
                   Try Another Search

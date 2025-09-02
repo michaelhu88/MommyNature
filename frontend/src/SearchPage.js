@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 
 function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useState({
     location_type: 'viewpoints',
-    city: '',
-    state: '',
+    selectedPlace: null,
     max_results: 5
   });
   const [loading, setLoading] = useState(false);
@@ -18,49 +18,16 @@ function SearchPage() {
     { value: 'dog_parks', label: 'Dog Parks' }
   ];
 
-  const usStates = [
-    { value: '', label: 'Select state' },
-    { value: 'CA', label: 'California (CA)' },
-    { value: 'NY', label: 'New York (NY)' },
-    { value: 'TX', label: 'Texas (TX)' },
-    { value: 'FL', label: 'Florida (FL)' },
-    { value: 'WA', label: 'Washington (WA)' },
-    { value: 'OR', label: 'Oregon (OR)' },
-    { value: 'CO', label: 'Colorado (CO)' },
-    { value: 'AZ', label: 'Arizona (AZ)' },
-    { value: 'NV', label: 'Nevada (NV)' },
-    { value: 'UT', label: 'Utah (UT)' },
-    { value: 'NM', label: 'New Mexico (NM)' },
-    { value: 'ID', label: 'Idaho (ID)' },
-    { value: 'MT', label: 'Montana (MT)' },
-    { value: 'WY', label: 'Wyoming (WY)' },
-    { value: 'NC', label: 'North Carolina (NC)' },
-    { value: 'SC', label: 'South Carolina (SC)' },
-    { value: 'GA', label: 'Georgia (GA)' },
-    { value: 'AL', label: 'Alabama (AL)' },
-    { value: 'TN', label: 'Tennessee (TN)' },
-    { value: 'KY', label: 'Kentucky (KY)' },
-    { value: 'VA', label: 'Virginia (VA)' },
-    { value: 'WV', label: 'West Virginia (WV)' },
-    { value: 'MD', label: 'Maryland (MD)' },
-    { value: 'PA', label: 'Pennsylvania (PA)' },
-    { value: 'NJ', label: 'New Jersey (NJ)' },
-    { value: 'CT', label: 'Connecticut (CT)' },
-    { value: 'MA', label: 'Massachusetts (MA)' },
-    { value: 'VT', label: 'Vermont (VT)' },
-    { value: 'NH', label: 'New Hampshire (NH)' },
-    { value: 'ME', label: 'Maine (ME)' },
-    { value: 'RI', label: 'Rhode Island (RI)' }
-  ];
+  const handlePlaceSelect = (place) => {
+    console.log('🏙️ Selected place:', place);
+    setSearchParams({...searchParams, selectedPlace: place});
+    setError(null);
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchParams.city.trim()) {
-      setError('Please enter a city');
-      return;
-    }
-    if (!searchParams.state) {
-      setError('Please select a state');
+    if (!searchParams.selectedPlace) {
+      setError('Please select a location');
       return;
     }
 
@@ -68,21 +35,11 @@ function SearchPage() {
     setError(null);
     
     try {
-      const cityStateCombo = `${searchParams.city.trim()}, ${searchParams.state}`;
-      console.log('🔍 handleSearch - combined city,state:', cityStateCombo);
+      const placeId = searchParams.selectedPlace.place_id;
+      const category = searchParams.location_type;
+      console.log('🔍 handleSearch - using place_id:', placeId, 'category:', category);
       
-      let cleanedCity = cityStateCombo;
-      if (cleanedCity.toUpperCase().endsWith('USA')) {
-        cleanedCity = cleanedCity.slice(0, -3).trim();
-      }
-      if (cleanedCity.endsWith(',')) {
-        cleanedCity = cleanedCity.slice(0, -1).trim();
-      }
-      console.log('🧹 handleSearch - final cleaned city:', cleanedCity);
-      const encodedCity = encodeURIComponent(cleanedCity.trim());
-      const encodedCategory = encodeURIComponent(searchParams.location_type);
-      
-      const response = await fetch(`http://localhost:8000/locations/${encodedCity}/${encodedCategory}`);
+      const response = await fetch(`http://localhost:8000/api/places/${encodeURIComponent(placeId)}/locations/${encodeURIComponent(category)}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch results');
@@ -95,7 +52,7 @@ function SearchPage() {
           results: data, 
           searchParams: {
             ...searchParams,
-            city: cleanedCity
+            city: searchParams.selectedPlace.display_name
           }
         } 
       });
@@ -132,34 +89,17 @@ function SearchPage() {
 
           <form onSubmit={handleSearch} className="search-form">
             <div className="search-bar">
-              <input
-                type="text"
-                value={searchParams.city}
-                onChange={(e) => {
-                  console.log('🔄 SearchPage received city update:', e.target.value);
-                  setSearchParams({...searchParams, city: e.target.value});
-                }}
+              <GooglePlacesAutocomplete
+                onPlaceSelect={handlePlaceSelect}
                 placeholder="Enter city name (e.g., San Francisco)"
                 className="search-input city-input"
+                value={searchParams.selectedPlace?.display_name || ''}
+                disabled={loading}
               />
-              <select
-                value={searchParams.state}
-                onChange={(e) => {
-                  console.log('🔄 SearchPage received state update:', e.target.value);
-                  setSearchParams({...searchParams, state: e.target.value});
-                }}
-                className="search-input state-select"
-              >
-                {usStates.map(state => (
-                  <option key={state.value} value={state.value}>
-                    {state.label}
-                  </option>
-                ))}
-              </select>
             </div>
             <button 
               type="submit" 
-              disabled={loading || !searchParams.city.trim() || !searchParams.state} 
+              disabled={loading || !searchParams.selectedPlace?.place_id} 
               className="search-button"
             >
               {loading ? 'Searching...' : 'Find Places'}

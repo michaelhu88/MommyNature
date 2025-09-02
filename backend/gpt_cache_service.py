@@ -94,7 +94,8 @@ class GPTCacheService:
                         "google_reviews": google_data.get("review_count"),
                         "address": google_data.get("address"),
                         "place_id": google_data.get("place_id"),
-                        "google_types": google_data.get("types", [])
+                        "google_types": google_data.get("types", []),
+                        "photo_urls": google_data.get("photo_urls", [])
                     })
                 
                 category_data["locations"].append(cache_entry)
@@ -209,6 +210,36 @@ class GPTCacheService:
             print(f"Error getting cache summary: {e}")
             return {}
 
+    def update_location_summary(self, place_id: str, category: str, location_name: str, mama_summary: str) -> bool:
+        """Update a location's mama summary in the cache"""
+        try:
+            # Look up city from place_id index
+            place_id_index = self.cache_data.get("place_id_index", {})
+            city = place_id_index.get(place_id)
+            
+            if not city or city not in self.cache_data["locations"]:
+                print(f"City not found for place_id: {place_id}")
+                return False
+            
+            # Find the location in the category
+            if category not in self.cache_data["locations"][city]:
+                print(f"Category '{category}' not found for city: {city}")
+                return False
+            
+            locations = self.cache_data["locations"][city][category]["locations"]
+            for location in locations:
+                if location.get("name", "").lower() == location_name.lower():
+                    location["mama_summary"] = mama_summary
+                    location["summary_updated"] = datetime.now().isoformat()
+                    return self.save_cache()
+            
+            print(f"Location '{location_name}' not found in {city}/{category}")
+            return False
+            
+        except Exception as e:
+            print(f"Error updating location summary: {e}")
+            return False
+    
     def clear_cache(self) -> bool:
         """Clear all cached data and reset to empty state"""
         try:

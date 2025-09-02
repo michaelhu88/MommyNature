@@ -262,6 +262,10 @@ Reddit Discussion:
                 google_data = self.places_service.search_place(search_query)
                 
                 if google_data:
+                    # Convert photo_names to photo_urls
+                    photo_names = google_data.get('photo_names', [])
+                    photo_urls = self.places_service.get_photo_urls(photo_names) if photo_names else []
+                    
                     verified_locations.append({
                         "name": location,
                         "verified": True,
@@ -271,7 +275,8 @@ Reddit Discussion:
                             "review_count": google_data.get('review_count', 0),
                             "address": google_data.get('address', ''),
                             "place_id": google_data.get('place_id', ''),
-                            "types": google_data.get('types', [])
+                            "types": google_data.get('types', []),
+                            "photo_urls": photo_urls
                         }
                     })
                     print(f"  ✅ Verified: {google_data.get('name', location)}")

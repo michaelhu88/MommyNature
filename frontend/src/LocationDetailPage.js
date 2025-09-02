@@ -10,6 +10,12 @@ function LocationDetailPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  
+  // Weather advice state
+  const [selectedDate, setSelectedDate] = useState('');
+  const [weatherAdvice, setWeatherAdvice] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState(null);
 
   // Try to get location data from navigation state first
   const passedLocationData = location.state?.locationData;
@@ -25,7 +31,7 @@ function LocationDetailPage() {
       
       // Add context parameters if available
       const params = new URLSearchParams();
-      if (searchContext?.city) params.append('city', searchContext.city);
+      if (searchContext?.place_id) params.append('place_id', searchContext.place_id);
       if (searchContext?.category) params.append('category', searchContext.category);
       
       if (params.toString()) {
@@ -90,6 +96,70 @@ function LocationDetailPage() {
       'gold': '#f59e0b'
     };
     return colorMap[color] || 'var(--soft-gray)';
+  };
+
+  // Weather advice handlers
+  const handleDateChange = (e) => {
+    setSelectedDate(e.target.value);
+    setWeatherAdvice(null);
+    setWeatherError(null);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const getWeatherAdvice = async () => {
+    if (!selectedDate || !locationData) return;
+
+    setWeatherLoading(true);
+    setWeatherError(null);
+    setWeatherAdvice(null);
+
+    try {
+      const requestBody = {
+        location_name: locationData.name,
+        visit_date: selectedDate,
+        place_id: searchContext?.place_id || null,
+        category: searchContext?.category || null
+      };
+
+      console.log('🌤️ FRONTEND DEBUG: Weather request:', requestBody);
+
+      const response = await fetch(
+        `http://localhost:8000/location/${encodeURIComponent(locationData.name)}/weather-advice`, 
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Weather service error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('🌈 FRONTEND DEBUG: Weather advice received:', data);
+      
+      setWeatherAdvice(data);
+    } catch (err) {
+      console.error('❌ FRONTEND DEBUG: Weather advice error:', err);
+      setWeatherError(
+        "I'm having trouble getting the weather right now, sweetie! " +
+        "Maybe try again in a moment, or check your local weather forecast. " +
+        "Either way, dress in layers and have a wonderful time! 💕"
+      );
+    } finally {
+      setWeatherLoading(false);
+    }
   };
 
   if (loading) {
@@ -226,48 +296,85 @@ function LocationDetailPage() {
           </div>
         )}
 
-        {/* Why awesome section */}
-        {locationData.awesome_points && locationData.awesome_points.length > 0 && (
-          <div className="awesome-section">
-            <h2>Why This Place is Awesome</h2>
-            <ul className="awesome-list">
-              {locationData.awesome_points.map((point, index) => (
-                <li key={index} className="awesome-item">
-                  {point}
-                </li>
-              ))}
-            </ul>
+        {/* Mama Knows Best section */}
+        {locationData.mama_summary && (
+          <div className="mama-section">
+            <h2>Mama Knows Best 💝</h2>
+            <div className="mama-summary">
+              {locationData.mama_summary}
+            </div>
           </div>
         )}
 
-        {/* Stats section */}
-        <div className="stats-section">
-          <h3>Quick Stats</h3>
-          <div className="stats-grid">
-            {locationData.google_rating && (
-              <div className="stat-card">
-                <div className="stat-label">Google Rating</div>
-                <div className="stat-value">⭐ {locationData.google_rating}/5</div>
-                {locationData.google_reviews > 0 && (
-                  <div className="stat-subtitle">{locationData.google_reviews} reviews</div>
-                )}
-              </div>
-            )}
+        {/* When Are You Going? section */}
+        <div className="when-going-section">
+          <h2>When Are You Going? 📅</h2>
+          <div className="date-picker-container">
+            <div className="date-input-wrapper">
+              <label htmlFor="visit-date" className="date-label">
+                Tell mama when you're planning to visit:
+              </label>
+              <input
+                type="date"
+                id="visit-date"
+                className="date-input"
+                min={new Date().toISOString().split('T')[0]}
+                max={new Date(Date.now() + 5*24*60*60*1000).toISOString().split('T')[0]}
+                onChange={handleDateChange}
+                value={selectedDate}
+              />
+            </div>
             
-            {locationData.score && (
-              <div className="stat-card">
-                <div className="stat-label">Overall Score</div>
-                <div className="stat-value">{locationData.score}/10</div>
-              </div>
-            )}
-            
-            {locationData.mentions > 0 && (
-              <div className="stat-card">
-                <div className="stat-label">Reddit Mentions</div>
-                <div className="stat-value">{locationData.mentions}</div>
-              </div>
+            {selectedDate && (
+              <button 
+                onClick={getWeatherAdvice}
+                className="weather-button"
+                disabled={weatherLoading}
+              >
+                {weatherLoading ? '🌤️ Getting weather...' : '🌤️ Get Weather Advice'}
+              </button>
             )}
           </div>
+
+          {/* Weather advice display */}
+          {weatherAdvice && (
+            <div className="weather-advice-container">
+              <div className="weather-info">
+                <h3>Weather Forecast for {formatDate(selectedDate)}</h3>
+                <div className="weather-details">
+                  <div className="temp-display">
+                    <span className="temperature">
+                      {weatherAdvice.weather.temperature || weatherAdvice.weather.avg_temp}°F
+                    </span>
+                    {weatherAdvice.weather.high_temp && weatherAdvice.weather.low_temp && (
+                      <span className="temp-range">
+                        {weatherAdvice.weather.low_temp}° - {weatherAdvice.weather.high_temp}°
+                      </span>
+                    )}
+                  </div>
+                  <div className="weather-condition">
+                    {weatherAdvice.weather.description || 'Partly cloudy'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mama-weather-advice">
+                <h3>Mama's Weather Wisdom 🌈</h3>
+                <div className="weather-advice-text">
+                  {weatherAdvice.mama_advice}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {weatherError && (
+            <div className="weather-error">
+              <h3>Oops! 😅</h3>
+              <div className="error-message">
+                {weatherError}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Data source info */}

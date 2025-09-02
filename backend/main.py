@@ -7,6 +7,9 @@ import os
 from reddit_transcript import RedditTranscriptService
 from gpt_extraction import GPTLocationExtractor
 from gpt_cache_service import GPTCacheService
+from gpt_summary import GPTSummaryService
+from weather_service import WeatherService
+from motherly_weather_advisor import MotherlyWeatherAdvisor
 import uvicorn
 
 app = FastAPI(
@@ -28,6 +31,9 @@ app.add_middleware(
 transcript_service = RedditTranscriptService()
 gpt_extractor = GPTLocationExtractor()
 cache_service = GPTCacheService()
+summary_service = GPTSummaryService()
+weather_service = WeatherService()
+weather_advisor = MotherlyWeatherAdvisor()
 
 @app.get("/")
 async def root():
@@ -58,6 +64,12 @@ class LocationRequest(BaseModel):
     reddit_url: str
     city: str
     category: str  # viewpoints, dog_parks, hiking_spots
+
+class WeatherRequest(BaseModel):
+    location_name: str
+    visit_date: str  # ISO date format (YYYY-MM-DD)
+    place_id: Optional[str] = None
+    category: Optional[str] = None
 
 @app.post("/api/transcript")
 async def get_reddit_transcript(request: TranscriptRequest):
@@ -302,20 +314,24 @@ async def get_cached_locations(city: str, category: str):
         raise HTTPException(status_code=500, detail=f"Failed to get cached locations: {str(e)}")
 
 @app.get("/location/{location_name}/details")
-async def get_location_details(location_name: str, city: Optional[str] = None, category: Optional[str] = None):
+async def get_location_details(location_name: str, place_id: Optional[str] = None, category: Optional[str] = None):
     """
     Get detailed information about a specific location
     
     - **location_name**: Name of the location to get details for
-    - **city**: Optional city context to narrow search  
+    - **place_id**: Google place_id for the city to lookup locations
     - **category**: Optional category context to narrow search
     """
     try:
         # Normalize location name (handle URL encoding)
         location_name = location_name.replace("%20", " ").replace("+", " ").strip()
         
-        # Search for the location in cache
-        all_locations = cache_service.get_locations(city=city, category=category)
+        # Search for the location in cache using place_id
+        if place_id:
+            all_locations = cache_service.get_locations_by_place_id(place_id, category)
+        else:
+            # Fallback to getting all locations if no place_id provided
+            all_locations = cache_service.get_locations(category=category)
         
         if not all_locations:
             raise HTTPException(status_code=404, detail=f"No locations found in cache")
@@ -337,6 +353,30 @@ async def get_location_details(location_name: str, city: Optional[str] = None, c
         if not found_location:
             raise HTTPException(status_code=404, detail=f"Location '{location_name}' not found in cache")
         
+        # Generate mama summary if not cached
+        mama_summary = found_location.get("mama_summary")
+        if not mama_summary and summary_service.client:
+            try:
+                # Generate new summary using GPT
+                mama_summary = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    summary_service.generate_location_summary,
+                    found_location
+                )
+                # Update cache with generated summary (if we have a place_id)
+                if mama_summary and place_id:
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        cache_service.update_location_summary,
+                        place_id,
+                        category or "unknown",
+                        found_location.get("name"),
+                        mama_summary
+                    )
+            except Exception as e:
+                print(f"Error generating mama summary for {found_location.get('name')}: {e}")
+                mama_summary = None
+        
         # Transform cache data to match frontend expectations
         location_details = {
             "name": found_location.get("name"),
@@ -349,7 +389,8 @@ async def get_location_details(location_name: str, city: Optional[str] = None, c
             "mentions": 1,  # Default since cache doesn't track mentions
             "tags": [],  # Could be derived from google_types if needed
             "awesome_points": [f"Highly rated location with {found_location.get('google_reviews', 0)} reviews"],
-            "photo_urls": []  # Cache doesn't store photos currently
+            "photo_urls": found_location.get("photo_urls", []),
+            "mama_summary": mama_summary
         }
         
         return {
@@ -361,6 +402,108 @@ async def get_location_details(location_name: str, city: Optional[str] = None, c
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get location details: {str(e)}")
+
+@app.post("/location/{location_name}/weather-advice")
+async def get_weather_advice(location_name: str, request: WeatherRequest):
+    """
+    Get motherly weather advice for a specific location and date
+    
+    - **location_name**: Name of the location to get weather advice for
+    - **visit_date**: Date of planned visit in ISO format (YYYY-MM-DD)
+    - **place_id**: Optional Google place_id for better location lookup
+    - **category**: Optional category context
+    """
+    try:
+        # Normalize location name (handle URL encoding)
+        location_name = location_name.replace("%20", " ").replace("+", " ").strip()
+        
+        # Get location data from cache first
+        location_data = None
+        if request.place_id:
+            all_locations = cache_service.get_locations_by_place_id(request.place_id, request.category)
+        else:
+            all_locations = cache_service.get_locations(category=request.category)
+        
+        # Find the specific location
+        if all_locations:
+            for location in all_locations:
+                if location.get("name", "").lower() == location_name.lower():
+                    location_data = location
+                    break
+        
+        # Fallback location data if not found in cache
+        if not location_data:
+            location_data = {
+                'name': location_name,
+                'address': f"{location_name}, CA, USA",  # Fallback address
+                'category': request.category or 'unknown'
+            }
+        
+        # Get city name for weather lookup (always use city weather, not specific location)
+        city_name = None
+        
+        # Try to get city from place_id first
+        if request.place_id:
+            city_metadata = cache_service.get_city_by_place_id(request.place_id)
+            if city_metadata:
+                city_name = city_metadata.get('name') or city_metadata.get('display_name', '').split(',')[0]
+        
+        # Fallback: try to extract city from cached location data
+        if not city_name and location_data:
+            # Look through all cached cities to find where this location exists
+            all_cities = cache_service.get_all_cities_with_metadata()
+            for city_data in all_cities:
+                city_locations = cache_service.get_locations(city_data['name'], request.category)
+                if city_locations:
+                    for loc in city_locations:
+                        if loc.get('name', '').lower() == location_name.lower():
+                            city_name = city_data['name']
+                            break
+                    if city_name:
+                        break
+        
+        # Final fallback: assume California and use simple city extraction
+        if not city_name:
+            # Default to major California cities for testing
+            city_name = "San Francisco"  # Default fallback - could be made smarter
+        
+        # Get weather data for the CITY (not the specific location)
+        weather_data = await asyncio.get_event_loop().run_in_executor(
+            None,
+            weather_service.get_weather_for_location_and_date,
+            city_name,
+            request.visit_date
+        )
+        
+        if not weather_data:
+            raise HTTPException(status_code=500, detail="Unable to get weather data")
+        
+        # Generate motherly weather advice
+        weather_advice = await asyncio.get_event_loop().run_in_executor(
+            None,
+            weather_advisor.generate_motherly_weather_advice,
+            location_data,
+            weather_data,
+            request.visit_date
+        )
+        
+        return {
+            "location": {
+                "name": location_data.get("name"),
+                "city": city_name,
+                "address": location_data.get('address', f"{location_name}, CA, USA")
+            },
+            "visit_date": request.visit_date,
+            "weather": weather_data,
+            "mama_advice": weather_advice,
+            "weather_note": f"Weather data is for {city_name} (city weather applies to all locations within the city)",
+            "generated_at": asyncio.get_event_loop().time()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get weather advice: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
