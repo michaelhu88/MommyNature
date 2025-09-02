@@ -27,7 +27,7 @@ function LocationDetailPage() {
     setError(null);
     
     try {
-      let url = `http://localhost:8000/location/${encodeURIComponent(locationName)}/details`;
+      let url = `https://mommynature-production.up.railway.app/location/${encodeURIComponent(locationName)}/details`;
       
       // Add context parameters if available
       const params = new URLSearchParams();
@@ -132,7 +132,7 @@ function LocationDetailPage() {
       console.log('🌤️ FRONTEND DEBUG: Weather request:', requestBody);
 
       const response = await fetch(
-        `http://localhost:8000/location/${encodeURIComponent(locationData.name)}/weather-advice`, 
+        `https://mommynature-production.up.railway.app/location/${encodeURIComponent(locationData.name)}/weather-advice`, 
         {
           method: 'POST',
           headers: {

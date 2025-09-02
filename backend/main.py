@@ -6,7 +6,7 @@ import asyncio
 import os
 from reddit_transcript import RedditTranscriptService
 from gpt_extraction import GPTLocationExtractor
-from gpt_cache_service import GPTCacheService
+from vercel_kv_cache_service import VercelKVCacheService
 from gpt_summary import GPTSummaryService
 from weather_service import WeatherService
 from motherly_weather_advisor import MotherlyWeatherAdvisor
@@ -30,7 +30,7 @@ app.add_middleware(
 # Initialize services
 transcript_service = RedditTranscriptService()
 gpt_extractor = GPTLocationExtractor()
-cache_service = GPTCacheService()
+cache_service = VercelKVCacheService()
 summary_service = GPTSummaryService()
 weather_service = WeatherService()
 weather_advisor = MotherlyWeatherAdvisor()

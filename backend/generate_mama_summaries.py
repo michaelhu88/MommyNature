@@ -17,12 +17,12 @@ Options:
 import argparse
 import asyncio
 from typing import Dict, List, Any
-from gpt_cache_service import GPTCacheService
+from vercel_kv_cache_service import VercelKVCacheService
 from gpt_summary import GPTSummaryService
 
 class MamaSummaryGenerator:
     def __init__(self):
-        self.cache_service = GPTCacheService()
+        self.cache_service = VercelKVCacheService()
         self.summary_service = GPTSummaryService()
         self.generated_count = 0
         self.skipped_count = 0

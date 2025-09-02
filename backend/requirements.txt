@@ -9,3 +9,4 @@ googlemaps>=4.10.0
 openai>=1.0.0
 redis>=5.0.0
 httpx>=0.25.2
+upstash-redis>=0.15.0

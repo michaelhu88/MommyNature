@@ -14,13 +14,13 @@ Features:
 import sys
 import os
 from datetime import datetime
-from gpt_cache_service import GPTCacheService
+from vercel_kv_cache_service import VercelKVCacheService
 
 
 class CacheManager:
     def __init__(self):
         """Initialize cache manager with service"""
-        self.cache_service = GPTCacheService()
+        self.cache_service = VercelKVCacheService()
         self.running = True
 
     def clear_screen(self):

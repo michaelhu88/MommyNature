@@ -39,7 +39,7 @@ function SearchPage() {
       const category = searchParams.location_type;
       console.log('🔍 handleSearch - using place_id:', placeId, 'category:', category);
       
-      const response = await fetch(`http://localhost:8000/api/places/${encodeURIComponent(placeId)}/locations/${encodeURIComponent(category)}`);
+      const response = await fetch(`https://mommynature-production.up.railway.app/api/places/${encodeURIComponent(placeId)}/locations/${encodeURIComponent(category)}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch results');
@@ -109,7 +109,7 @@ function SearchPage() {
           {error && (
             <div className="error">
               <p>Error: {error}</p>
-              <p>Make sure your FastAPI backend is running on http://localhost:8000</p>
+              <p>Unable to connect to the backend server. Please try again.</p>
             </div>
           )}
         </div>

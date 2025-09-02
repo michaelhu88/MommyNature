@@ -21,7 +21,7 @@ from datetime import datetime
 
 
 class BatchProcessor:
-    def __init__(self, api_base_url: str = "http://localhost:8000"):
+    def __init__(self, api_base_url: str = "https://mommynature-production.up.railway.app"):
         """Initialize batch processor"""
         self.api_base_url = api_base_url
         self.locations_endpoint = f"{api_base_url}/api/locations"
